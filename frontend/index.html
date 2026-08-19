@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EdgeRAG — Local AI Chatbot</title>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand">
+                    <svg class="brand-logo-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" fill="var(--accent-color)" stroke="var(--accent-color)" stroke-width="2" stroke-linejoin="round"/>
+                    </svg>
+                    <h1>EdgeRAG</h1>
+                </div>
+                <button class="close-sidebar-btn" id="closeSidebarBtn" aria-label="Close sidebar">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            
+            <button class="new-chat-btn" id="newChatBtn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>New Chat</span>
+            </button>
+            
+            <div class="conversations-section">
+                <span class="section-title">RECENT CONVERSATIONS</span>
+                <div class="conversations-list" id="conversationsList">
+                    <!-- Dynamic conversation items will be populated here -->
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="status-item">
+                    <div class="status-indicator-dot online"></div>
+                    <div class="status-info">
+                        <span class="status-title">Local AI</span>
+                        <span class="status-desc">Running locally</span>
+                    </div>
+                </div>
+                <div class="system-meta">
+                    <span>Qwen 2.5 · ChromaDB</span>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Sidebar Backdrop for Mobile -->
+        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+        <!-- Main Chat Container -->
+        <main class="main-content">
+            <!-- Top Mobile Bar -->
+            <header class="top-bar">
+                <button class="menu-btn" id="menuBtn" aria-label="Open sidebar">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+                <div class="current-chat-title" id="currentChatTitle">EdgeRAG</div>
+                <div style="width: 24px;"></div> <!-- Placeholder spacer for layout alignment -->
+            </header>
+
+            <div class="chat-viewport">
+                <!-- Messages Container -->
+                <div class="messages-container" id="messagesContainer">
+                    <!-- Messages will be populated here -->
+                </div>
+
+                <!-- Empty State (Welcome Screen) -->
+                <div class="empty-state" id="emptyState">
+                    <div class="welcome-header">
+                        <div class="welcome-logo">EdgeRAG</div>
+                        <h2>What can I help you find?</h2>
+                        <p class="welcome-sub">Ask questions about your local knowledge base.</p>
+                    </div>
+                    
+                    <div class="suggested-prompts">
+                        <button class="prompt-chip" data-prompt="What is Docker?">
+                            What is Docker?
+                        </button>
+                        <button class="prompt-chip" data-prompt="Explain edge computing">
+                            Explain edge computing
+                        </button>
+                        <button class="prompt-chip" data-prompt="What is Kubernetes?">
+                            What is Kubernetes?
+                        </button>
+                        <button class="prompt-chip" data-prompt="Cloud computing advantages">
+                            Cloud computing advantages
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Message Composer Area -->
+            <footer class="composer-container">
+                <form class="composer-form" id="composerForm">
+                    <div class="textarea-wrapper">
+                        <textarea 
+                            id="messageInput" 
+                            placeholder="Ask EdgeRAG anything..." 
+                            rows="1"
+                            maxlength="2000"
+                            autocomplete="off"
+                            required
+                        ></textarea>
+                        <button type="submit" class="send-btn" id="sendBtn" aria-label="Send message" disabled>
+                            <svg class="send-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+                <div class="composer-disclaimer">
+                    EdgeRAG runs locally. Your data stays on-device.
+                </div>
+            </footer>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
