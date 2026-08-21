@@ -63,39 +63,49 @@ Semantic Retrieval
 
 ### Flowchart Breakdown
 
-```mermaid
-flowchart LR
-    subgraph Storage["Local Storage"]
-        DOCS["documents/*.txt"]
-        CHROMA["ChromaDB Vector Store<br/>(./data)"]
-    end
+#### Phase 1: Ingestion & Vector Indexing (Offline)
 
-    subgraph Indexing["Ingestion Phase"]
-        INGEST["ingest.py"]
-        NOMIC_INGEST["Ollama<br/>nomic-embed-text"]
-    end
-
-    subgraph Querying["Runtime Query Phase"]
-        UI["EdgeRAG Frontend<br/>(Vanilla JS / CSS)"]
-        API["FastAPI Backend<br/>(main.py)"]
-        RAG["RAG Engine<br/>(rag.py)"]
-        NOMIC_QUERY["Ollama<br/>nomic-embed-text"]
-        LLM["Ollama LLM<br/>(qwen2.5:3b)"]
-    end
-
-    DOCS --> INGEST
-    INGEST --> NOMIC_INGEST
-    NOMIC_INGEST --> CHROMA
-
-    UI -->|"POST /query"| API
-    API --> RAG
-    RAG --> NOMIC_QUERY
-    NOMIC_QUERY -->|"Query Vector"| CHROMA
-    CHROMA -->|"Top-2 Chunks"| RAG
-    RAG --> LLM
-    LLM -->|"Answer + Sources"| API
-    API --> UI
+```text
+[ documents/*.txt ]
+       │
+       ▼
+ [ ingest.py ] ──► [ Ollama: nomic-embed-text ] ──► [ ChromaDB Store ]
+ (Splits text)      (Generates 768-dim vectors)     (Saves to ./data)
 ```
+
+#### Phase 2: Query Processing & Answer Generation (Runtime)
+
+```text
+ [ EdgeRAG UI ]
+       │
+       ▼ (POST /query JSON payload)
+ [ FastAPI (main.py) ]
+       │
+       ▼
+ [ rag.py ] ──► [ Ollama: nomic-embed-text ] (Embeds User Question)
+       │
+       ▼
+ [ ChromaDB ] (Retrieves Top-2 Nearest Text Chunks)
+       │
+       ▼
+ [ Ollama: Qwen 2.5 3B ] (Synthesizes Grounded Answer)
+       │
+       ▼
+ [ EdgeRAG UI ] (Displays Answer + Source Chips)
+```
+
+### Detailed Workflow Step-by-Step
+
+| Step | Layer | Action / Process | Output / Result |
+| --- | --- | --- | --- |
+| **1. Indexing** | Ingestion Script | `ingest.py` reads `.txt` files & splits on blank lines (`\n\n`) | Clean text paragraph chunks |
+| **2. Embedding** | Ollama Engine | `nomic-embed-text` generates vector representations | 768-dimensional float vectors |
+| **3. Storage** | ChromaDB | Upserts chunks with source metadata into `./data` | Persistent local vector store (`cloud_docs`) |
+| **4. User Query** | Web Frontend | User sends question through dark-themed UI | `POST /query` to FastAPI |
+| **5. Vector Search**| RAG Backend | `rag.py` embeds query & searches ChromaDB (`n_results=2`) | Top 2 matching document chunks |
+| **6. Generation** | Qwen 2.5 3B | LLM generates grounded answer strictly using context | Context-bound response text |
+| **7. Rendering** | Web Frontend | UI renders response markdown with source chips (e.g. `cloud.txt`) | Interactive, cited response |
+
 
 ### Technology Stack
 
