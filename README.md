@@ -63,8 +63,16 @@ Semantic Retrieval
 
 ### Flowchart Breakdown
 
+#### Phase 1: Knowledge Ingestion & Vector Indexing (Offline)
+
 <p align="center">
-  <img src="docs/screenshots/architecture_workflow.png" alt="EdgeRAG Architecture Workflow" width="900" />
+  <img src="docs/screenshots/ingestion_workflow.png" alt="EdgeRAG Phase 1 Ingestion Workflow" width="900" />
+</p>
+
+#### Phase 2: RAG Retrieval & Answer Generation (Runtime)
+
+<p align="center">
+  <img src="docs/screenshots/query_workflow.png" alt="EdgeRAG Phase 2 Query Workflow" width="900" />
 </p>
 
 
