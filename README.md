@@ -2,8 +2,6 @@
 
 > A privacy-focused, local RAG AI assistant that uses a local language model and vector search to answer questions from a customizable knowledge base without relying on cloud AI APIs.
 
-Repository: [https://github.com/mayursureshnair/Offline-Edge-RAG-AI.git](https://github.com/mayursureshnair/Offline-Edge-RAG-AI.git)
-
 <p align="center">
   <img src="docs/screenshots/home.png" alt="EdgeRAG Interface" width="850" />
 </p>
