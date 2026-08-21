@@ -1,253 +1,239 @@
-# EdgeRAG — Offline Edge RAG Chatbot
+# EdgeRAG — Offline AI Knowledge Assistant
 
-**EdgeRAG** is a fully local Retrieval-Augmented Generation (RAG) chatbot. You load your own documents, ask questions in a ChatGPT-style UI, and get answers grounded in that knowledge base — with **no cloud LLM APIs**. Queries, embeddings, and generation all run on-device through [Ollama](https://ollama.com/).
+> A privacy-focused, local RAG AI assistant that uses a local language model and vector search to answer questions from a customizable knowledge base without relying on cloud AI APIs.
 
-> EdgeRAG runs locally. Your data stays on-device.
+Repository: [https://github.com/mayursureshnair/Offline-Edge-RAG-AI.git](https://github.com/mayursureshnair/Offline-Edge-RAG-AI.git)
 
 <p align="center">
-  <img src="docs/screenshots/home.png" alt="EdgeRAG home screen" width="900" />
+  <img src="docs/screenshots/home.png" alt="EdgeRAG Interface" width="850" />
 </p>
 
 ---
 
-## Why this project
+## Overview
 
-Typical RAG demos send your documents and prompts to a hosted API. EdgeRAG is built for **edge / air-gapped** use:
+**EdgeRAG** is a clean, local Retrieval-Augmented Generation (RAG) system designed to run entirely on-device. Users provide local plain text (`.txt`) documents, which are vectorized and queried locally. When a user asks a question through the web interface or terminal CLI, EdgeRAG retrieves relevant document chunks and synthesizes precise, source-backed answers using a local Large Language Model.
 
-| Goal | How EdgeRAG does it |
-| --- | --- |
-| Privacy | Documents, embeddings, and chat never leave the machine |
-| Offline inference | **Qwen 2.5 3B** and **nomic-embed-text** run via Ollama |
-| Traceable answers | Retrieved files are shown under each reply (e.g. `cloud.txt`) |
-| Grounded generation | The model is instructed to answer **only from retrieved context** |
+---
 
-If the knowledge base does not cover a topic, EdgeRAG says so instead of hallucinating from general training data:
+## Why EdgeRAG?
 
-<p align="center">
-  <img src="docs/screenshots/out-of-scope.png" alt="Out-of-scope answer when the knowledge base has no matching content" width="900" />
-</p>
+* **Local Processing**: Operations run directly on your hardware via Ollama and ChromaDB.
+* **No Cloud AI APIs**: No dependency on third-party SaaS APIs, API keys, or active subscriptions.
+* **Data Stays On-Device**: Knowledge files and user queries never leave your local environment.
+* **Fully Offline Operation**: After downloading initial models and dependencies, the system functions completely offline.
+* **Customizable Knowledge Base**: Swap, edit, or append `.txt` documents without altering any Python codebase logic.
+
+---
+
+## Features
+
+* **Offline / On-Device RAG Pipeline** powered by Ollama.
+* **Qwen 2.5 3B (`qwen2.5:3b`)**: Lightweight, instruct-tuned LLM optimized for local edge execution.
+* **Nomic Embeddings (`nomic-embed-text`)**: High-performance vector embeddings for semantic document search.
+* **ChromaDB**: On-disk persistent vector store (`./data`) for document chunks.
+* **FastAPI Backend**: Clean ASGI web server handling question retrieval and streaming response payloads.
+* **Source-Aware Answers**: Every answer cites the exact filename source (e.g. `cloud.txt`) used to construct the response.
+* **Dark-Themed Modern Frontend**: Responsive HTML/CSS/JS UI featuring chat session history in `localStorage`.
+* **CLI Terminal Mode**: Optional terminal interface (`python app.py`) for quick command-line queries.
 
 ---
 
 ## Architecture
 
+The core data pipeline flows through the following stages:
+
+```text
+Local .txt Documents
+        ↓
+   ingest.py
+        ↓
+Nomic Embeddings
+        ↓
+    ChromaDB
+        ↓
+Semantic Retrieval
+        ↓
+   Qwen 2.5 3B
+        ↓
+     FastAPI
+        ↓
+   EdgeRAG UI
+```
+
+### Flowchart Breakdown
+
 ```mermaid
 flowchart LR
-    subgraph Client["Browser"]
-        UI["EdgeRAG UI<br/>HTML · CSS · JS"]
+    subgraph Storage["Local Storage"]
+        DOCS["documents/*.txt"]
+        CHROMA["ChromaDB Vector Store<br/>(./data)"]
     end
 
-    subgraph API["FastAPI · Uvicorn"]
-        EP["POST /query"]
+    subgraph Indexing["Ingestion Phase"]
+        INGEST["ingest.py"]
+        NOMIC_INGEST["Ollama<br/>nomic-embed-text"]
     end
 
-    subgraph RAG["rag.py"]
-        EMB["Ollama embed<br/>nomic-embed-text"]
-        RET["ChromaDB query<br/>top-k = 2"]
-        LLM["Ollama generate<br/>qwen2.5:3b"]
+    subgraph Querying["Runtime Query Phase"]
+        UI["EdgeRAG Frontend<br/>(Vanilla JS / CSS)"]
+        API["FastAPI Backend<br/>(main.py)"]
+        RAG["RAG Engine<br/>(rag.py)"]
+        NOMIC_QUERY["Ollama<br/>nomic-embed-text"]
+        LLM["Ollama LLM<br/>(qwen2.5:3b)"]
     end
 
-    subgraph Store["On disk"]
-        CH["./data<br/>collection: cloud_docs"]
-    end
+    DOCS --> INGEST
+    INGEST --> NOMIC_INGEST
+    NOMIC_INGEST --> CHROMA
 
-    UI -->|"JSON { question }" | EP
-    EP --> EMB
-    EMB --> RET
-    RET --> CH
-    CH --> RET
-    RET -->|"chunks + sources" | LLM
-    LLM -->|"answer + source names" | EP
-    EP --> UI
+    UI -->|"POST /query"| API
+    API --> RAG
+    RAG --> NOMIC_QUERY
+    NOMIC_QUERY -->|"Query Vector"| CHROMA
+    CHROMA -->|"Top-2 Chunks"| RAG
+    RAG --> LLM
+    LLM -->|"Answer + Sources"| API
+    API --> UI
 ```
 
-**Stack at a glance**
+### Technology Stack
 
-| Layer | Choice | Role |
+| Component | Choice | Description |
 | --- | --- | --- |
-| LLM | **Qwen 2.5 (`qwen2.5:3b`)** | 3B-parameter instruct model — small enough for laptops / edge boxes, strong enough for grounded Q&A |
-| Embeddings | **nomic-embed-text** | Converts document chunks and user questions into vectors via Ollama |
-| Vector store | **ChromaDB** (`PersistentClient`) | Stores embeddings on disk under `./data` |
-| Backend | **FastAPI** + **Uvicorn** | Serves the UI and `POST /query` |
-| Runtime | **Ollama** | Local inference for both embedding and generation |
-| Frontend | Vanilla HTML / CSS / JS | Dark chat UI, history in `localStorage` |
+| **LLM** | Qwen 2.5 3B (`qwen2.5:3b`) | 3-Billion parameter instruct model running locally via Ollama |
+| **Embedding Model** | Nomic Embed Text (`nomic-embed-text`) | 768-dimensional text embedding model |
+| **Vector Database** | ChromaDB (`PersistentClient`) | Embedded vector store saving embeddings to `./data` |
+| **Backend API** | FastAPI + Uvicorn | High-performance Python web framework |
+| **Frontend UI** | Vanilla HTML5 / CSS3 / ES6 JS | Clean dark-mode UI with sidebar history |
+| **Inference Engine** | Ollama | Local model runner and manager |
 
 ---
 
-## How it works (step by step)
+## Screenshots & Workflows
 
-### 1. Ingest documents (offline indexing)
-
-Drop `.txt` files into `documents/`, then run `python ingest.py`.
-
-```mermaid
-flowchart TD
-    A["documents/*.txt"] --> B["Read UTF-8 text"]
-    B --> C["Split on blank lines<br/>paragraph chunks"]
-    C --> D["Ollama: nomic-embed-text"]
-    D --> E["Vector for each chunk"]
-    E --> F["ChromaDB upsert<br/>id: filename-i<br/>metadata: source"]
-    F --> G["Persistent store ./data"]
-```
-
-What `ingest.py` does:
-
-1. Opens (or creates) the Chroma collection `cloud_docs`.
-2. Reads every `.txt` file in `documents/` with UTF-8 encoding.
-3. Splits each file on double newlines into paragraph-sized chunks.
-4. Embeds each chunk with **nomic-embed-text**.
-5. **Upserts** into Chroma so re-running ingest updates chunks instead of crashing on duplicate IDs.
-
-Sample knowledge currently in the repo: `cloud.txt`, `docker.txt`, `kubernetes.txt`, `edge_computing.txt`.
-
-### 2. Ask a question (retrieve + generate)
-
-The UI posts the question to FastAPI. `rag.py` then:
-
-```mermaid
-sequenceDiagram
-    participant U as You
-    participant F as FastAPI
-    participant O as Ollama
-    participant C as ChromaDB
-    participant Q as Qwen 2.5 3B
-
-    U->>F: POST /query { question }
-    F->>O: embed(question) with nomic-embed-text
-    O-->>F: question vector
-    F->>C: query top 2 nearest chunks
-    C-->>F: documents + metadata (source files)
-    F->>Q: prompt = CONTEXT + QUESTION<br/>"Answer only using the provided context."
-    Q-->>F: grounded answer
-    F-->>U: { answer, sources }
-```
-
-Retrieval is **k = 2** nearest neighbors. Sources are de-duplicated so the UI can show tags like `cloud.txt`.
+### Grounded Source Answers
+When a user asks a question covered in the knowledge base, EdgeRAG retrieves relevant chunks and displays the source file tag.
 
 <p align="center">
-  <img src="docs/screenshots/grounded-answer.png" alt="Grounded answer with cloud.txt source tag" width="900" />
+  <img src="docs/screenshots/grounded-answer.png" alt="Grounded Answer Example" width="850" />
 </p>
 
-### 3. Prompt contract
+### Context Refusal (Out-of-Scope Protection)
+If the knowledge base does not contain relevant context, EdgeRAG informs the user rather than hallucinating from general model weight pre-training.
 
-The LLM is not used as a general chatbot. The prompt is:
+<p align="center">
+  <img src="docs/screenshots/out-of-scope.png" alt="Out-of-Scope Example" width="850" />
+</p>
+
+---
+
+## Requirements
+
+* **Python 3.10+**
+* **Ollama** installed on host machine ([ollama.com](https://ollama.com))
+* Required Ollama models:
+  * `qwen2.5:3b`
+  * `nomic-embed-text`
+* Python dependencies (listed in `requirements.txt`):
+  * `fastapi`
+  * `uvicorn`
+  * `pydantic`
+  * `ollama`
+  * `chromadb`
+
+---
+
+## Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/mayursureshnair/Offline-Edge-RAG-AI.git
+   cd Offline-Edge-RAG-AI
+   ```
+
+2. **Create and activate a virtual environment**:
+   * Windows (PowerShell):
+     ```powershell
+     python -m venv .venv
+     .venv\Scripts\Activate.ps1
+     ```
+   * macOS / Linux:
+     ```bash
+     python3 -m venv .venv
+     source .venv/bin/activate
+     ```
+
+3. **Install Python dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Pull Ollama models**:
+   Make sure Ollama is running, then pull the LLM and embedding model:
+   ```bash
+   ollama pull qwen2.5:3b
+   ollama pull nomic-embed-text
+   ```
+
+---
+
+## Customize the Knowledge Base
+
+The knowledge base is composed of plain text files located in the `documents/` directory:
 
 ```text
-Use the following context to answer the question.
-
-CONTEXT:
-<retrieved chunks>
-
-QUESTION:
-<user question>
-
-Answer only using the provided context.
+documents/
+├── cloud.txt
+├── docker.txt
+├── edge_computing.txt
+└── kubernetes.txt
 ```
 
-That is why in-scope questions (cloud, Docker, Kubernetes, edge computing) get cited answers, and out-of-scope questions return a refusal based on missing context.
+You can customize your assistant's knowledge without touching any Python code:
+
+### Workflow
+
+1. **Add / Remove / Modify `.txt` files** inside the `documents/` directory.
+2. **Re-index documents**:
+   ```bash
+   python ingest.py
+   ```
+3. **Start the FastAPI backend**:
+   ```bash
+   python -m uvicorn main:app --host 127.0.0.1 --port 8000
+   ```
+4. **Open the local EdgeRAG frontend** in your browser at `http://127.0.0.1:8000`.
+5. **Ask questions** grounded in your updated knowledge base.
+
+*Note: `ingest.py` splits text files on double newlines (`\n\n`) and uses upserts in ChromaDB, preventing duplicate ID conflicts when re-running ingestion.*
 
 ---
 
-## Models in more detail
+## Usage
 
-### Qwen 2.5 3B (`qwen2.5:3b`)
+### Web Interface (Recommended)
 
-- Instruct-tuned **3 billion parameter** model from the Qwen 2.5 family.
-- Chosen as a **edge-friendly** generator: lower RAM/VRAM than 7B/14B class models, still capable of following the “answer only from context” instruction.
-- Served locally by Ollama (`ollama generate`), not via Alibaba Cloud or any HTTP LLM API.
+1. Ensure Ollama service is running locally.
+2. Run ingestion if documents have changed:
+   ```bash
+   python ingest.py
+   ```
+3. Start the FastAPI server:
+   * **Windows Quick-Start**:
+     Double-click `run.bat` or run:
+     ```cmd
+     run.bat
+     ```
+   * **Cross-Platform Shell**:
+     ```bash
+     python -m uvicorn main:app --host 127.0.0.1 --port 8000
+     ```
+4. Navigate to `http://127.0.0.1:8000` in your web browser.
 
-### nomic-embed-text
+### Terminal CLI Mode
 
-- Dedicated **text embedding** model pulled through Ollama.
-- Used for **both** indexing (`ingest.py`) and query-time encoding (`rag.py`) so document and question vectors live in the same space.
-- Typical embedding width for this model is **768 dimensions**.
-
-### ChromaDB
-
-- Embedded vector database — no separate server process.
-- `chromadb.PersistentClient(path="./data")` writes collections to disk so the index survives restarts.
-- Collection name: `cloud_docs`. Each chunk stores `metadata["source"]` (the original filename).
-
-### FastAPI
-
-- `main.py` is the production entrypoint:
-  - `POST /query` — JSON body `{ "question": "..." }`, returns `{ "answer", "sources" }`.
-  - Empty questions return **400**; RAG failures return **500**.
-  - CORS is enabled for local development.
-  - Static files from `frontend/` are mounted at `/` (HTML mode), so opening `http://127.0.0.1:8000` loads the chat UI.
-- Uvicorn is the ASGI server (`python -m uvicorn main:app --host 127.0.0.1 --port 8000`).
-
-`app.py` is an optional **CLI** client for the same RAG pipeline (no browser). `api.py` is an earlier API sketch; prefer `main.py`.
-
----
-
-## Project structure
-
-```text
-.
-├── main.py              # FastAPI app + static frontend
-├── rag.py               # Embed → retrieve → Qwen generate
-├── ingest.py            # Index documents into ChromaDB
-├── app.py               # Terminal chatbot
-├── api.py               # Alternate API (legacy)
-├── frontend/            # Chat UI
-│   ├── index.html
-│   ├── style.css
-│   └── app.js
-├── documents/           # Source knowledge base (.txt)
-├── docs/screenshots/    # README images
-├── run.bat              # Windows: open browser + start Uvicorn
-└── requirements.txt
-```
-
----
-
-## Quick start
-
-### Prerequisites
-
-1. **Python 3.10+**
-2. **[Ollama](https://ollama.com/download)** installed and running
-3. Pull the two local models:
-
-```bash
-ollama pull qwen2.5:3b
-ollama pull nomic-embed-text
-```
-
-### Install and index
-
-```bash
-git clone https://github.com/mayursureshnair/Offline-Edge-RAG-AI.git
-cd Offline-Edge-RAG-AI
-
-python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# macOS / Linux:
-# source .venv/bin/activate
-
-pip install -r requirements.txt
-python ingest.py
-```
-
-### Run the web app
-
-**Windows**
-
-```bat
-run.bat
-```
-
-**Any OS**
-
-```bash
-python -m uvicorn main:app --host 127.0.0.1 --port 8000
-```
-
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000).
-
-### CLI (optional)
+For headless environments or quick command-line testing:
 
 ```bash
 python app.py
@@ -255,35 +241,70 @@ python app.py
 
 ---
 
-## Using your own documents
+## Example Questions
 
-1. Add or replace `.txt` files in `documents/`.
-2. Re-run `python ingest.py` (upserts by `filename-i`).
-3. Ask questions in the UI. Source chips will show the filenames that were retrieved.
+Questions answered by default sample knowledge files (`cloud.txt`, `docker.txt`, `edge_computing.txt`, `kubernetes.txt`):
 
-Keep chunks reasonably short: ingest splits on **blank lines**, so structure your files as paragraphs.
+* **What is Docker?**
+* **What is Edge AI?**
+* **What is AWS EC2?**
+* **How does Kubernetes work?**
 
 ---
 
-## API
+## Project Structure
 
-`POST /query`
-
-```json
-{ "question": "What are the advantages of cloud computing?" }
+```text
+Offline-Edge-RAG-AI/
+├── .gitignore             # Git ignore configuration
+├── README.md              # Project documentation
+├── requirements.txt       # Python package dependencies
+├── main.py                # Primary FastAPI app & static file server
+├── rag.py                 # RAG pipeline logic (Embedding, ChromaDB query, LLM call)
+├── ingest.py              # Document ingestion & vector store indexing script
+├── app.py                 # CLI terminal interface
+├── api.py                 # Alternate/legacy API endpoint sketch
+├── test_embeddings.py     # Independent RAG verification script
+├── run.bat                # Windows automated launcher script
+├── documents/             # Knowledge base directory (.txt files)
+│   ├── cloud.txt
+│   ├── docker.txt
+│   ├── edge_computing.txt
+│   └── kubernetes.txt
+├── docs/                  # Documentation assets & screenshots
+│   └── screenshots/
+│       ├── grounded-answer.png
+│       ├── home.png
+│       └── out-of-scope.png
+└── frontend/              # Web user interface static files
+    ├── app.js             # Client logic & state management
+    ├── index.html         # Application layout
+    └── style.css          # Dark design theme styles
 ```
 
-Response:
+---
 
-```json
-{
-  "answer": "...",
-  "sources": ["cloud.txt"]
-}
-```
+## Limitations
+
+* **Plain Text Only**: Current ingestion pipeline strictly processes `.txt` files split on double newline paragraphs.
+* **Local Resource Dependent**: Speed depends on host machine hardware (GPU/CPU/RAM) running Ollama.
+* **Retrieval Window**: Queries fetch the top-2 nearest chunks (`n_results=2`), optimized for concise Q&A.
+* **Knowledge Bound**: Answers are strictly constrained by the uploaded context.
+
+---
+
+## Future Improvements
+
+* PDF document ingestion support
+* Multi-document folder upload via web interface
+* Advanced text splitting strategies (semantic & token chunking)
+* Document page and paragraph line number citations
+* Multi-collection switching and knowledge base management
+* Reranking with Cross-Encoder models
+* Additional document format handlers (Markdown, DOCX, CSV)
 
 ---
 
 ## License
 
-Use and modify freely for learning and local deployments. Add a formal license file if you need one for your organization.
+This project is open-source and free to modify for educational, personal, and edge deployment purposes.
