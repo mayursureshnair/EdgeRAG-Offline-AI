@@ -63,36 +63,10 @@ Semantic Retrieval
 
 ### Flowchart Breakdown
 
-#### Phase 1: Ingestion & Vector Indexing (Offline)
+<p align="center">
+  <img src="docs/screenshots/architecture_workflow.png" alt="EdgeRAG Architecture Workflow" width="900" />
+</p>
 
-```text
-[ documents/*.txt ]
-       │
-       ▼
- [ ingest.py ] ──► [ Ollama: nomic-embed-text ] ──► [ ChromaDB Store ]
- (Splits text)      (Generates 768-dim vectors)     (Saves to ./data)
-```
-
-#### Phase 2: Query Processing & Answer Generation (Runtime)
-
-```text
- [ EdgeRAG UI ]
-       │
-       ▼ (POST /query JSON payload)
- [ FastAPI (main.py) ]
-       │
-       ▼
- [ rag.py ] ──► [ Ollama: nomic-embed-text ] (Embeds User Question)
-       │
-       ▼
- [ ChromaDB ] (Retrieves Top-2 Nearest Text Chunks)
-       │
-       ▼
- [ Ollama: Qwen 2.5 3B ] (Synthesizes Grounded Answer)
-       │
-       ▼
- [ EdgeRAG UI ] (Displays Answer + Source Chips)
-```
 
 ### Detailed Workflow Step-by-Step
 
