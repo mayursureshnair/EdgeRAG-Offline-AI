@@ -297,4 +297,4 @@ Offline-Edge-RAG-AI/
 
 ## License
 
-This project is open-source and free to modify for educational, personal, and edge deployment purposes.
+This project is open-source and free to modify for educational, personal, and edge deployment purposes :)
